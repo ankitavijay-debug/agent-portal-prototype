@@ -242,7 +242,7 @@ async function doExcluded(s, ex) {
 }
 
 /* ---------- personal agent behaviour: understand Priya, call only the portal ---------- */
-const LIVE_URL = 'http://localhost:4311'; let LIVE = false;
+const LIVE_URL = 'http://' + location.hostname + ':4311'; let LIVE = false;
 async function checkLive() { try { const h = await (await fetch(LIVE_URL + '/health')).json(); LIVE = !!h.live; } catch { LIVE = false; } }
 checkLive(); setInterval(checkLive, 5000);
 let inboxSeen = 0; // messages the live agent decided to send on its own after Acme changed something
