@@ -1,0 +1,4 @@
+assistant-state.json
+*.log
+node_modules
+.DS_Store

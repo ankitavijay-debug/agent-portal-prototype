@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Portal admin: agent policy setup</title>
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--ink:#16202e;--mut:#5b6778;--line:#dfe4ec;--brand:#0b5cab;--ok:#1a7f4b;--warn:#b26a00;--bad:#c23030}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:#0f2744;color:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:17px;margin:0}header small{color:#9fb4d0}
+main{max-width:1180px;margin:18px auto;padding:0 18px;display:grid;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+h2{font-size:15px;margin:0 0 4px}.sub{color:var(--mut);margin:0 0 12px;font-size:13px}
+table{width:100%;border-collapse:collapse}th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
+select,input[type=number],input[type=text]{font:inherit;padding:4px 6px;border:1px solid #c5ccd8;border-radius:6px;background:#fff}
+input[type=number]{width:76px}
+button{font:inherit;border:1px solid #c5ccd8;background:#fff;border-radius:7px;padding:6px 12px;cursor:pointer}
+button.p{background:var(--brand);border-color:var(--brand);color:#fff}button:hover{filter:brightness(.97)}
+.tier{display:inline-block;min-width:22px;text-align:center;border-radius:5px;padding:1px 6px;font-weight:600;color:#fff}
+.t0{background:#6b7a8f}.t1{background:#1a7f4b}.t2{background:#b26a00}.t3{background:#c2570c}.t4{background:#9b2c5a}
+.presets{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.preset{border:1px solid var(--line);border-radius:9px;padding:12px;cursor:pointer}.preset:hover{border-color:var(--brand)}
+.preset b{display:block;margin-bottom:2px}.preset span{color:var(--mut);font-size:12.5px}
+.two{display:grid;grid-template-columns:1.1fr 1fr;gap:16px}
+.th{display:grid;grid-template-columns:200px 90px 1fr;gap:10px;align-items:start;padding:9px 0;border-bottom:1px solid var(--line)}
+.th label{font-weight:600}.th .rec{color:var(--ok);font-size:12px}.th .how{color:var(--mut);font-size:12.5px}
+.chk li{margin:5px 0}.chk .done{color:var(--ok)}.chk .todo{color:var(--mut)}
+.sug{padding:8px 10px;border-radius:7px;margin:6px 0;font-size:13px}.sug.loosen{background:#e8f6ee}.sug.tighten{background:#fdeeee}.sug.tune{background:#fff4e0}
+.bar{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);padding:10px 18px;display:flex;gap:10px;align-items:center;justify-content:space-between}
+#err{color:var(--bad);font-size:13px}#ok{color:var(--ok);font-size:13px}
+.log{font-size:12.5px;border-bottom:1px solid var(--line);padding:6px 0}.log code{color:var(--mut)}
+.matrix td,.matrix th{text-align:center}.matrix td:first-child,.matrix th:first-child{text-align:left}
+.sim{background:#f7f9fc;border-radius:8px;padding:10px;margin-top:10px;min-height:60px}
+.verdict{font-weight:700}.v-autonomous{color:var(--ok)}.v-human-in-loop{color:var(--warn)}.v-blocked{color:var(--bad)}
+.tiny{font-size:12px;color:var(--mut)}
+</style></head><body>
+<header><div><h1>Portal admin: agent policy setup</h1><small>What agents may do, who approves, and where the limits sit</small></div><small>Signed in as admin (tok-admin)</small></header>
+<main>
+  <section class="card">
+    <h2>1. Start from a posture</h2>
+    <p class="sub">Pick a preset as a baseline, then adjust. Presets only change tiers, approvers and thresholds, never agent scopes. You can undo any change from the change log.</p>
+    <div class="presets" id="presets"></div>
+  </section>
+
+  <section class="card">
+    <h2>2. Classify every action (the capability manifest)</h2>
+    <p class="sub">Score each action on <b>reversibility</b>, <b>money</b>, <b>customer-visible impact</b> and <b>data sensitivity</b>, then set the tier. Rule of thumb: reversible and internal = tier 1; irreversible or money = tier 2; identity or contact data = tier 3 with step-up; exceptions to policy = tier 4 (a human enterprise agent first, then the customer).</p>
+    <table id="actions"><thead><tr><th>Action</th><th>Tier</th><th>Approvers (in order)</th><th>Step-up</th><th>Reversible</th><th>Personal data</th><th>Per-action limit $</th><th>Auto-approve up to $</th><th>On</th><th>Suggested</th></tr></thead><tbody></tbody></table>
+    <p class="tiny">Tier 0 read | 1 act and notify with undo | 2 customer approves | 3 approves with step-up | 4 supervisor then customer.</p>
+  </section>
+
+  <div class="two">
+    <section class="card">
+      <h2>3. Scope each agent (least privilege)</h2>
+      <p class="sub">A surface agent such as Claude or ChatGPT gets only what a conversation needs. Background agents get what the goal plan needs. Anything unticked is denied and logged.</p>
+      <table class="matrix" id="matrix"></table>
+    </section>
+    <section class="card">
+      <h2>5. Try a policy before you save it</h2>
+      <p class="sub">Simulates the saved policy plus your unsaved edits.</p>
+      <select id="sAgent"></select> <select id="sAction"></select> <input type="number" id="sAmt" placeholder="$" style="width:70px">
+      <button id="sGo">Simulate</button>
+      <div class="sim" id="simOut"><span class="tiny">Pick an agent and action, for example claude + pay_diagnostic_fee + 80.</span></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>4. Set thresholds</h2>
+    <p class="sub">Each threshold shows a recommended starting value and how to tune it from real data. Start tight; loosen only with evidence.</p>
+    <div id="thresholds"></div>
+  </section>
+
+  <section class="card">
+    <h2>7. Personal Agent Protocol (Poppy): what personal agents see and who may connect</h2>
+    <p class="sub">The portal publishes a <a href="/.well-known/poppy.json" target="_blank">poppy.json</a> and a <a href="/poppy/tasks" target="_blank">tasks endpoint</a> from this policy. <b>Excluded tasks</b> are things you do not offer through any interface (agent, API or website). Limits that depend on the account, such as the $100 fee limit or the goal budget, are not exclusions: they return errors.</p>
+    <div class="two">
+      <div>
+        <b>Excluded tasks</b> <span class="tiny">(short phrase, plus where to send the user instead)</span>
+        <table id="excl"><thead><tr><th>Task</th><th>Alternative</th><th></th></tr></thead><tbody></tbody></table>
+        <button id="exAdd">Add excluded task</button>
+        <p class="tiny" id="exNote"></p>
+      </div>
+      <div>
+        <b>Registered personal agents</b> <span class="tiny">(only these client_id URLs are ever fetched and trusted)</span>
+        <table id="pcl"><thead><tr><th>client_id URL</th><th>Maps to</th><th>On</th><th></th></tr></thead><tbody></tbody></table>
+        <button id="pcAdd">Register agent</button>
+        <div style="margin-top:12px"><b>Linked users</b> <span class="tiny">(opaque Poppy user ID to account; never an email or name)</span></div>
+        <table id="pus"><thead><tr><th>Poppy user ID</th><th>Account</th><th></th></tr></thead><tbody></tbody></table>
+        <button id="puAdd">Link user</button>
+        <p class="tiny">Sign-in is not OAuth in this prototype: a verified session maps to the account you link here. Set POPPY_REQUIRED=1 to refuse demo tokens.</p>
+      </div>
+    </div>
+    <b>Published scope hints</b> <span class="tiny">(derived from section 2: changes = none, reversible or irreversible)</span>
+    <div id="pub" class="tiny" style="margin-top:6px"></div>
+  </section>
+
+  <div class="two">
+    <section class="card">
+      <h2>6. Data-driven suggestions</h2>
+      <p class="sub">Computed from approvals, denials, expiries and violations seen so far.</p>
+      <div id="sugs"><span class="tiny">No data yet. Run the demo at /demo, then refresh.</span></div>
+      <h2 style="margin-top:14px">Go-live checklist</h2>
+      <ul class="chk" id="chk" style="padding-left:18px;margin:6px 0"></ul>
+    </section>
+    <section class="card">
+      <h2>Change log</h2>
+      <p class="sub">Every policy change is recorded with what moved.</p>
+      <div id="log"></div>
+    </section>
+  </div>
+</main>
+<div class="bar"><div id="err"></div><div><span id="ok"></span> <button id="revert">Discard edits</button> <button id="reset">Reset to defaults</button> <button class="p" id="save">Save policy</button></div></div>
+<script>
+const TOK='tok-admin';
+const $=(s)=>document.querySelector(s);
+let saved=null, draft=null, meta=null, dirtyNote='';
+const api=async(m,u,b)=>{const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOK},body:b?JSON.stringify(b):undefined});return {status:r.status,body:await r.json()}};
+const clone=(o)=>JSON.parse(JSON.stringify(o));
+const THR=[
+ ['goalBudget','Default goal budget ($)',1,'$100','Cap on total spend per goal. Set it near the typical resolution cost of a case, then check the p90 of actual spend after a month.'],
+ ['budgetWarnPct','Budget warning (%)',1,'80','Alert Priya before the cap bites. Lower it if goals often jump straight past the cap.'],
+ ['approvalTtlMin','Approval and grant expiry (min)',1,'15','Short enough that a stale approval cannot be replayed, long enough for a human to respond. If many approvals expire, lengthen it or add a backup approver.'],
+ ['slowApprovalSec','Slow-approval alert (sec)',1,'180','Match your approver SLA. Alerts fire when a human is the bottleneck.'],
+ ['stallSec','Stalled-goal alert (sec)',1,'25 (demo) / 3600 in production','How long a goal may sit with no progress before a human is nudged. Use the median goal step time times 3.'],
+ ['loopGuardCalls','Loop guard (calls per 10s)',1,'14','Max background calls in a 10s window before the goal is paused. Set to about 2x the busiest legitimate burst.'],
+ ['autoRevokeAfter','Auto-revoke after N violations',1,'3 to 5 (0 = off)','Out-of-scope attempts, tampered redeems, self-approval attempts and injections count. Turning this on gives you a circuit breaker for a compromised agent.'],
+ ['undoMin','Undo window for tier 1 (min)',1,'5','How long Priya can reverse an act-and-notify action.'],
+];
+async function load(){
+  const r=await api('GET','/api/admin/config'); if(r.status!==200){$('#err').textContent='Admin access failed';return}
+  saved=r.body.config; meta=r.body; if(!draft) draft=clone(saved);
+  render();
+}
+function tierBadge(t){return `<span class="tier t${t}">${t}</span>`}
+function suggest(a){ // risk score to suggested tier
+  let s=0; if(!a.reversible)s+=2; if(a.money)s+=1; if(/address|contact|identity/.test(a.desc.toLowerCase()))s+=2; if(/exception/.test(a.desc.toLowerCase()))s+=4;
+  if(a.tier===0&&a.reversible&&!a.money)return 0; return s>=4?4:s>=3?3:s>=1?2:1;
+}
+function defApprovers(t){return t>=4?['supervisor','priya']:t>=2?['priya']:[]}
+function render(){
+  $('#presets').innerHTML=Object.entries(meta.presets).map(([k,p])=>`<div class="preset" data-p="${k}"><b>${p.label}</b><span>${p.note}</span></div>`).join('');
+  document.querySelectorAll('.preset').forEach(e=>e.onclick=async()=>{ if(!confirm('Apply preset and save? Current tiers and thresholds will change.'))return; const r=await api('POST','/api/admin/preset',{name:e.dataset.p}); flash(r); draft=null; load();});
+  const tb=$('#actions tbody'); tb.innerHTML='';
+  for(const [k,a] of Object.entries(draft.actions)){
+    const sg=suggest(a), tr=document.createElement('tr');
+    tr.innerHTML=`<td><b>${k}</b><div class="tiny">${a.desc}</div></td>
+    <td><select data-k="${k}" data-f="tier">${[0,1,2,3,4].map(t=>`<option ${t===a.tier?'selected':''} value="${t}">Tier ${t}</option>`).join('')}</select></td>
+    <td><select data-k="${k}" data-f="approvers" ${a.tier<2?'disabled':''}><option value="priya" ${a.approvers.join()==='priya'?'selected':''}>Priya</option><option value="supervisor,priya" ${a.approvers.join()==='supervisor,priya'?'selected':''}>Supervisor, then Priya</option><option value="supervisor" ${a.approvers.join()==='supervisor'?'selected':''}>Supervisor only</option></select></td>
+    <td><input type="checkbox" data-k="${k}" data-f="stepup" ${a.stepup?'checked':''} ${a.tier<2?'disabled':''}></td>
+    <td><input type="checkbox" data-k="${k}" data-f="reversible" ${a.reversible?'checked':''}></td>
+    <td><input type="checkbox" data-k="${k}" data-f="personalData" ${a.personalData?'checked':''}></td>
+    <td>${a.money?`<input type="number" data-k="${k}" data-f="limit" value="${a.limit||0}">`:'<span class="tiny">n/a</span>'}</td>
+    <td>${a.money?`<input type="number" data-k="${k}" data-f="autoUpTo" value="${a.autoUpTo||0}">`:'<span class="tiny">n/a</span>'}</td>
+    <td><input type="checkbox" data-k="${k}" data-f="enabled" ${a.enabled?'checked':''}></td>
+    <td>${sg===a.tier?'<span class="tiny">matches</span>':`${tierBadge(sg)} <span class="tiny">risk score</span>`}</td>`;
+    tb.appendChild(tr);
+  }
+  tb.querySelectorAll('[data-f]').forEach(el=>el.onchange=()=>{
+    const a=draft.actions[el.dataset.k], f=el.dataset.f;
+    if(f==='tier'){a.tier=+el.value; a.approvers=defApprovers(a.tier); a.stepup=a.tier===3;}
+    else if(f==='approvers')a.approvers=el.value.split(',');
+    else if(el.type==='checkbox')a[f]=el.checked; else a[f]=+el.value;
+    render();
+  });
+  // matrix
+  const ags=Object.keys(draft.scopes), acts=Object.keys(draft.actions);
+  $('#matrix').innerHTML=`<tr><th>Action</th>${ags.map(g=>`<th>${g}</th>`).join('')}</tr>`+acts.map(k=>`<tr><td>${k} ${tierBadge(draft.actions[k].tier)}</td>${ags.map(g=>`<td><input type="checkbox" data-sg="${g}" data-sa="${k}" ${draft.scopes[g].includes(k)?'checked':''}></td>`).join('')}</tr>`).join('');
+  document.querySelectorAll('[data-sg]').forEach(el=>el.onchange=()=>{const l=draft.scopes[el.dataset.sg];const k=el.dataset.sa;if(el.checked){if(!l.includes(k))l.push(k)}else draft.scopes[el.dataset.sg]=l.filter(x=>x!==k);});
+  // simulator
+  const sa=$('#sAgent'), sx=$('#sAction'); if(!sa.options.length){sa.innerHTML=ags.map(g=>`<option>${g}</option>`).join('');sx.innerHTML=acts.map(k=>`<option>${k}</option>`).join('')}
+  // thresholds
+  $('#thresholds').innerHTML=THR.map(([k,l,,rec,how])=>`<div class="th"><label>${l}</label><input type="number" data-t="${k}" value="${draft.t[k]}"><div><div class="rec">Recommended start: ${rec}</div><div class="how">${how}</div></div></div>`).join('');
+  document.querySelectorAll('[data-t]').forEach(el=>el.onchange=()=>{draft.t[el.dataset.t]=+el.value});
+  // suggestions
+  $('#sugs').innerHTML=meta.suggestions.length?meta.suggestions.map(s=>`<div class="sug ${s.kind}">${s.text}</div>`).join(''):'<span class="tiny">No data yet. Run the demo at /demo, then refresh.</span>';
+  // checklist
+  const A=saved.actions, anyT4=Object.values(A).some(a=>a.tier===4), money=Object.values(A).filter(a=>a.money);
+  const items=[
+   ['Every action has a tier', Object.values(A).every(a=>a.tier>=0)],
+   ['No surface agent can run a tier 4 action', !['claude','chatgpt'].some(g=>saved.scopes[g].some(k=>A[k].tier===4))],
+   ['Every money action has a per-action limit and budget', money.every(a=>a.limit>0)&&saved.t.goalBudget>0],
+   ['Irreversible actions are tier 2 or higher', Object.values(A).every(a=>a.reversible||a.tier>=2)],
+   ['Sensitive changes require step-up', Object.values(A).filter(a=>a.tier===3).every(a=>a.stepup)],
+   ['Auto-revoke circuit breaker is on', saved.t.autoRevokeAfter>0],
+   ['Escalation path exists (supervisor stage defined)', anyT4],
+   ['Approval expiry is 30 minutes or less', saved.t.approvalTtlMin<=30],
+  ];
+  $('#chk').innerHTML=items.map(([t,ok])=>`<li class="${ok?'done':'todo'}">${ok?'[x]':'[ ]'} ${t}</li>`).join('');
+  renderPoppy();
+  // log
+  $('#log').innerHTML=meta.changes.length?meta.changes.map(c=>`<div class="log"><b>${c.why}</b> <code>${new Date(c.ts).toLocaleTimeString()}</code><br>${c.changes.slice(0,6).join('<br>')}${c.changes.length>6?`<br><code>and ${c.changes.length-6} more</code>`:''}</div>`).join(''):'<span class="tiny">No changes yet.</span>';
+}
+const esc=(s)=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function renderPoppy(){
+  const ex=draft.excluded, cl=draft.poppy.clients, us=Object.entries(draft.poppy.users);
+  $('#excl tbody').innerHTML=ex.map((e,i)=>`<tr><td><input type="text" data-ex="${i}" data-f="task" value="${esc(e.task)}" style="width:100%"></td><td><input type="text" data-ex="${i}" data-f="alternative" value="${esc(e.alternative||'')}" style="width:100%"></td><td><button data-exdel="${i}">x</button></td></tr>`).join('')||'<tr><td colspan="3" class="tiny">None. Agents will try every task.</td></tr>';
+  $('#pcl tbody').innerHTML=cl.map((c,i)=>`<tr><td><input type="text" data-pc="${i}" data-f="clientId" value="${esc(c.clientId)}" style="width:100%"></td><td><select data-pc="${i}" data-f="agent">${['claude','chatgpt'].map(a=>`<option ${c.agent===a?'selected':''}>${a}</option>`).join('')}</select></td><td><input type="checkbox" data-pc="${i}" data-f="enabled" ${c.enabled!==false?'checked':''}></td><td><button data-pcdel="${i}">x</button></td></tr>`).join('')||'<tr><td colspan="4" class="tiny">No personal agents registered. Only demo tokens work.</td></tr>';
+  $('#pus tbody').innerHTML=us.map(([sub,acct],i)=>`<tr><td><input type="text" data-pu="${i}" data-f="sub" value="${esc(sub)}" style="width:100%"></td><td><select data-pu="${i}" data-f="acct"><option ${acct==='priya'?'selected':''}>priya</option></select></td><td><button data-pudel="${i}">x</button></td></tr>`).join('')||'<tr><td colspan="3" class="tiny">No users linked.</td></tr>';
+  document.querySelectorAll('[data-ex]').forEach(el=>el.onchange=()=>{draft.excluded[+el.dataset.ex][el.dataset.f]=el.value});
+  document.querySelectorAll('[data-exdel]').forEach(el=>el.onclick=()=>{draft.excluded.splice(+el.dataset.exdel,1);renderPoppy()});
+  document.querySelectorAll('[data-pc]').forEach(el=>el.onchange=()=>{draft.poppy.clients[+el.dataset.pc][el.dataset.f]=el.type==='checkbox'?el.checked:el.value});
+  document.querySelectorAll('[data-pcdel]').forEach(el=>el.onclick=()=>{draft.poppy.clients.splice(+el.dataset.pcdel,1);renderPoppy()});
+  document.querySelectorAll('[data-pu]').forEach(el=>el.onchange=()=>{const ents=Object.entries(draft.poppy.users);const i=+el.dataset.pu;ents[i]=el.dataset.f==='sub'?[el.value,ents[i][1]]:[ents[i][0],el.value];draft.poppy.users=Object.fromEntries(ents)});
+  document.querySelectorAll('[data-pudel]').forEach(el=>el.onclick=()=>{const ents=Object.entries(draft.poppy.users);ents.splice(+el.dataset.pudel,1);draft.poppy.users=Object.fromEntries(ents);renderPoppy()});
+  const enabledNames=Object.entries(draft.actions).filter(([,a])=>a.enabled).map(([k])=>k.replace(/_/g,' '));
+  const clash=ex.filter(e=>enabledNames.includes(String(e.task).toLowerCase()));
+  $('#exNote').textContent=clash.length?`"${clash[0].task}" is still an enabled action. Switch the action off in section 2 first.`:'';
+  fetch('/.well-known/poppy.json').then(r=>r.json()).then(d=>{$('#pub').innerHTML=Object.entries(d.auth.scope_hints).map(([k,h])=>`<span class="tier t${h.changes==='none'?0:h.changes==='reversible'?1:2}" style="margin:2px">${k}: ${h.changes}${h.personal_data?', personal data':''}</span>`).join(' ')+'<div style="margin-top:4px">Shows the saved policy.</div>'});
+}
+$('#exAdd').onclick=()=>{draft.excluded.push({task:'',alternative:''});renderPoppy()};
+$('#pcAdd').onclick=()=>{draft.poppy.clients.push({clientId:'https://',agent:'claude',enabled:true});renderPoppy()};
+$('#puAdd').onclick=()=>{draft.poppy.users['usr_']='priya';renderPoppy()};
+function flash(r){ $('#err').textContent=''; $('#ok').textContent=''; if(r.status===200)$('#ok').textContent=r.body.changes&&r.body.changes.length?`Saved, ${r.body.changes.length} change(s) live now`:'No changes'; else $('#err').textContent=(r.body.errors||[r.body.error]).join(' | '); }
+$('#save').onclick=async()=>{const r=await api('POST','/api/admin/config',{config:draft,why:'manual edit'}); flash(r); if(r.status===200){draft=null;load()}};
+$('#revert').onclick=()=>{draft=clone(saved);$('#err').textContent='';render()};
+$('#reset').onclick=async()=>{if(!confirm('Reset all policy to the shipped defaults?'))return;const r=await api('POST','/api/admin/config-reset');flash(r);draft=null;load()};
+$('#sGo').onclick=async()=>{
+  // simulate against saved policy, plus note if draft differs
+  const body={agent:$('#sAgent').value,action:$('#sAction').value,amount:$('#sAmt').value===''?undefined:+$('#sAmt').value};
+  const r=await api('POST','/api/admin/simulate',body), b=r.body;
+  $('#simOut').innerHTML=`<div class="verdict v-${b.verdict}">${(b.verdict||'error').toUpperCase()}${b.tier!==undefined?' (tier '+b.tier+')':''}</div><ol style="margin:6px 0 0 18px;padding:0">${(b.steps||[b.error]).map(s=>`<li>${s}</li>`).join('')}</ol>${JSON.stringify(draft)!==JSON.stringify(saved)?'<div class="tiny" style="margin-top:6px">You have unsaved edits. Simulation uses the saved policy. Save to test them.</div>':''}`;
+};
+load();
+</script></body></html>
