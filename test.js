@@ -25,7 +25,7 @@ async function until(fn, ms = 20000) { const t = Date.now(); while (Date.now() -
   check('Background agent checks warranty, books tech, reminds, then requests exception', !!apr);
   let s = await state();
   check('Tier 0 and 1 actions ran without approval', s.metrics.tiers[0] >= 1 && s.metrics.tiers[1] >= 2, JSON.stringify(s.metrics.tiers));
-  check('Exception is routed to supervisor first', apr && apr.stages.join() === 'supervisor,priya');
+  check('Exception is a company decision: routed to the supervisor only', apr && apr.stages.join() === 'supervisor');
 
   // 3. Governance checks
   check('Agent cannot approve its own request (403)', (await call('POST', `/api/approvals/${apr.id}/decide`, 'tok-bg', { decision: 'approve' })).status === 403);
@@ -37,9 +37,9 @@ async function until(fn, ms = 20000) { const t = Date.now(); while (Date.now() -
   const cur = (await call('GET', `/api/portal/goals/${goalId}`, 'tok-chatgpt')).body.goal.version;
   check('Stale write from ChatGPT rejected (409)', (await call('POST', '/api/portal/actions', 'tok-chatgpt', { goalId, action: 'send_reminder', params: {}, version: cur - 1 })).status === 409);
 
-  // 4. Approvals: supervisor, then Priya consent; bg agent redeems grant
+  // 4. Approvals: the supervisor decides the exception (Acme's call); bg agent redeems grant
   check('Supervisor approves', (await call('POST', `/api/approvals/${apr.id}/decide`, 'tok-supervisor', { decision: 'approve' })).status === 200);
-  check('Priya consents', (await call('POST', `/api/approvals/${apr.id}/decide`, 'tok-priya', { decision: 'approve' })).status === 200);
+  check('Exception granted on supervisor approval alone; Priya is not asked', (await state()).approvals.find((x) => x.id === apr.id).status === 'approved');
   const fee = await until((x) => x.approvals.find((p) => p.action === 'pay_diagnostic_fee' && p.status === 'pending'));
   check('After exception, agent requests $80 fee (tier 2)', !!fee && fee.cost === 80);
   await call('POST', `/api/approvals/${fee.id}/decide`, 'tok-priya', { decision: 'approve' });

@@ -34,7 +34,7 @@ const DEFAULT_CONFIG = () => ({
     pay_diagnostic_fee: { desc: 'Charge diagnostic fee',         tier: 2, approvers: ['priya'],               stepup: false, reversible: false, enabled: true, money: true, limit: 100, autoUpTo: 0 },
     close_case:         { desc: 'Mark case resolved',            tier: 2, approvers: ['priya'],               stepup: false, reversible: false, enabled: true },
     change_address:     { desc: 'Change service address',        tier: 3, approvers: ['priya'],               stepup: true,  reversible: false, enabled: true, personalData: true },
-    warranty_exception: { desc: 'Goodwill warranty exception',   tier: 4, approvers: ['supervisor', 'priya'], stepup: false, reversible: false, enabled: true },
+    warranty_exception: { desc: 'Goodwill warranty exception',   tier: 4, approvers: ['supervisor'], stepup: false, reversible: false, enabled: true },
   },
   // Tasks this company does not offer through ANY interface (Poppy excluded tasks). Account-based limits are errors, not exclusions.
   excluded: [
@@ -408,7 +408,7 @@ const PRESETS = {
   balanced:     { label: 'Balanced', note: 'Reversible actions run on their own, money and irreversible actions need a human.', tiers: { book_technician: 1, send_reminder: 1, pay_diagnostic_fee: 2, close_case: 2, change_address: 3, warranty_exception: 4 }, autoUpTo: 0, t: { goalBudget: 100, approvalTtlMin: 15, autoRevokeAfter: 5, loopGuardCalls: 14 } },
   autonomous:   { label: 'Autonomous', note: 'Small spend auto-approved within limits. Use only after weeks of clean data.', tiers: { book_technician: 1, send_reminder: 1, pay_diagnostic_fee: 2, close_case: 1, change_address: 3, warranty_exception: 4 }, autoUpTo: 25, t: { goalBudget: 250, approvalTtlMin: 30, autoRevokeAfter: 0, loopGuardCalls: 20 } },
 };
-const defaultApprovers = (t) => (t >= 4 ? ['supervisor', 'priya'] : t >= 2 ? ['priya'] : []);
+const defaultApprovers = (t) => (t >= 4 ? ['supervisor'] : t >= 2 ? ['priya'] : []);
 function validate(c) {
   const errs = [];
   for (const [k, a] of Object.entries(c.actions || {})) {

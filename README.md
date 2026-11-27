@@ -16,7 +16,7 @@ Env knobs: `PORT`, `TICK` (background agent interval ms), `APPROVAL_TTL`, `STALL
 
 ## Flow
 1. Claude creates a goal. ChatGPT creating the same goal joins it (no duplicate).
-2. Background agent: check warranty (T0), book technician (T1), remind (T1), warranty expired, so it requests a goodwill exception (T4: supervisor, then Priya).
+2. Background agent: check warranty (T0), book technician (T1), remind (T1), warranty expired, so it requests a goodwill exception (T4: the supervisor decides; Priya is informed, not asked).
 3. After approval it redeems the grant, requests the $80 fee (T2), then asks Priya to confirm closing (T2).
 4. Surfaces can propose T2/T3 actions (fee, address change, close) and must redeem their own grants.
 
