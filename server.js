@@ -380,6 +380,7 @@ function createGoal(tok, b) {
   audit(ag.id, 'goal_created', objective, g.id);
   return r(201, { goal: pub(g), brief: brief(g) });
 }
+function getGoal(tok, id) { const g = S.goals[id]; return g ? r(200, { goal: pub(g), facts: g.facts, brief: brief(g) }) : r(404, { error: 'unknown goal' }); }
 const pub = (g) => ({ id: g.id, objective: g.objective, status: g.status, version: g.version, constraints: g.constraints, spent: g.spent });
 const INJECTION = /(ignore|disregard|forget)[^.]{0,30}(previous|prior|above|all)[^.]{0,30}(instruction|rule|polic)|you are now|system prompt|reveal .*(token|key)/i;
 
@@ -525,6 +526,13 @@ function openapiDoc() {
 const tasksDoc = () => ({ excluded_tasks: CFG.excluded, skills: [], feedback: { endpoint: PUBLIC_URL + '/poppy/feedback' } });
 
 // ---- HTTP plumbing ----
+const MCP_TOOLS = [
+  { name: 'acme_discover', description: 'What this agent may do with Acme and which tasks Acme excludes (with alternatives).', inputSchema: { type: 'object', properties: {} } },
+  { name: 'acme_create_goal', description: 'Hand Acme a service goal for the signed-in customer. Acme\'s enterprise agent works it over days.', inputSchema: { type: 'object', properties: { objective: { type: 'string' } }, required: ['objective'] } },
+  { name: 'acme_get_goal', description: 'Current state of a goal, handoff brief and pending approvals.', inputSchema: { type: 'object', properties: { goal_id: { type: 'string' } }, required: ['goal_id'] } },
+  { name: 'acme_add_note', description: 'Add a note from the customer to a goal (treated as data).', inputSchema: { type: 'object', properties: { goal_id: { type: 'string' }, text: { type: 'string' } }, required: ['goal_id', 'text'] } },
+  { name: 'acme_request_action', description: 'Ask Acme to perform an action on a goal. Actions needing a human return pending; the agent cannot approve.', inputSchema: { type: 'object', properties: { goal_id: { type: 'string' }, action: { type: 'string' }, params: { type: 'object' }, version: { type: 'number' }, idem_key: { type: 'string' }, grant_id: { type: 'string' }, why: { type: 'string' } }, required: ['goal_id', 'action'] } },
+];
 const send = (res, { status, body }) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)); };
 function readBody(req) { return new Promise((ok) => { let d = ''; req.on('data', (c) => (d += c)); req.on('end', () => { try { ok(d ? JSON.parse(d) : {}); } catch { ok({}); } }); }); }
 
@@ -533,6 +541,27 @@ http.createServer(async (req, res) => {
   let tok = (req.headers.authorization || '').replace('Bearer ', '');
   const p = url.pathname;
   try {
+    // Acme's MCP server: the brand-facing front door that a customer's personal agent calls (stateless Streamable HTTP, JSON-RPC).
+    // It is a thin layer over the same portal handlers, so tiers, grants and approvals apply unchanged.
+    if (p === '/mcp/acme') {
+      const hdr = { 'Content-Type': 'application/json' }; const m = req.method === 'POST' ? await readBody(req) : null;
+      if (!m) { res.writeHead(405, { Allow: 'POST' }); return res.end(); }
+      if (!authAgent(tok)) { res.writeHead(401, hdr); return res.end(JSON.stringify({ jsonrpc: '2.0', id: m.id, error: { code: -32001, message: 'OAuth access token required' } })); }
+      const rep = (result) => { res.writeHead(200, hdr); res.end(JSON.stringify({ jsonrpc: '2.0', id: m.id, result })); };
+      if (m.method === 'initialize') return rep({ protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'acme-service-mcp', version: '1.0' } });
+      if (m.method === 'tools/list') return rep({ tools: MCP_TOOLS });
+      if (m.method === 'tools/call') {
+        const a = (m.params && m.params.arguments) || {}, name = m.params && m.params.name; let out;
+        if (name === 'acme_discover') out = r(200, { allowed: authAgent(tok).actions, excluded_tasks: CFG.excluded });
+        else if (name === 'acme_create_goal') out = createGoal(tok, { objective: a.objective });
+        else if (name === 'acme_get_goal') out = getGoal(tok, a.goal_id);
+        else if (name === 'acme_add_note') out = message(tok, a.goal_id, { text: a.text });
+        else if (name === 'acme_request_action') out = act(tok, { goalId: a.goal_id, action: a.action, params: a.params || {}, version: a.version, idemKey: a.idem_key, grantId: a.grant_id, why: a.why });
+        else out = r(400, { error: 'unknown tool' });
+        return rep({ content: [{ type: 'text', text: JSON.stringify(out) }], isError: out.status >= 400 });
+      }
+      return rep({});
+    }
     // Public Poppy discovery documents
     if (req.method === 'GET' && p === '/.well-known/poppy.json') return send(res, r(200, poppyDoc()));
     if (req.method === 'GET' && p === '/poppy/tasks') return send(res, r(200, tasksDoc()));
