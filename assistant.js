@@ -149,6 +149,7 @@ http.createServer(async (req, res) => {
   if (url.pathname === '/trace') return send(res, 200, { trace: ST.trace.slice(-50) });
   if (url.pathname === '/inbox') { const since = +url.searchParams.get('since') || 0; return send(res, 200, { messages: ST.inbox.filter((m) => m.id > since) }); }
   if (url.pathname === '/memory') return send(res, 200, { memory: ST.memory, goals: ST.goals });
+  if (url.pathname === '/restart' && req.method === 'POST') { save(); try { ST = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { ST = seedState(); } return send(res, 200, { ok: true, reloaded: true }); }
   if (url.pathname === '/reset' && req.method === 'POST') { ST = seedState(); save(); return send(res, 200, { ok: true }); }
   if (url.pathname === '/chat' && req.method === 'POST') {
     if (!KEY) return send(res, 503, { error: 'ANTHROPIC_API_KEY is not set. Start with: ANTHROPIC_API_KEY=... node assistant.js' });
