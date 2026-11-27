@@ -362,7 +362,7 @@ function tick() {
   sweep();
   if (S.bgEnabled && !S.revoked['bg-agent'] && !(S.bgBrainSeen && now() - S.bgBrainSeen < 20000)) for (const g of Object.values(S.goals)) if (g.agentOn && !['resolved', 'paused'].includes(g.status)) bgStep(g);
 }
-setInterval(tick, TICK);
+if (!process.env.MANUAL_TICK) setInterval(tick, TICK); // MANUAL_TICK=1: deterministic capture, ticks only via POST /api/admin/tick
 
 // ---- Portal API handlers ----
 function createGoal(tok, b) {
@@ -645,6 +645,7 @@ http.createServer(async (req, res) => {
     if (req.method === 'POST' && p === '/api/admin/revoke') { S.revoked[b.agent] = !!b.revoked; audit('admin', 'revoke', `${b.agent} ${b.revoked ? 'revoked' : 'restored'}`); return send(res, r(200, { ok: true })); }
     if (req.method === 'POST' && p === '/api/admin/bg') { S.bgEnabled = !!b.enabled; return send(res, r(200, { ok: true })); }
     if (req.method === 'POST' && p === '/api/admin/clear-alert') { S.alerts.forEach((a) => (a.cleared = true)); return send(res, r(200, { ok: true })); }
+    if (req.method === 'POST' && p === '/api/admin/tick' && process.env.MANUAL_TICK) { tick(); return send(res, r(200, { ok: true })); }
     if (req.method === 'POST' && p === '/api/admin/reset') { fresh(); return send(res, r(200, { ok: true })); }
     send(res, r(404, { error: 'not found' }));
   } catch (e) { console.error(e); send(res, r(500, { error: String(e) })); }
