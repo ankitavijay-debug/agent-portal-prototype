@@ -54,3 +54,7 @@ The live agent keeps `assistant-state.json` (what it knows about Priya, the goal
 
 ### LLM-driven Acme background agent (acme-agent.js)
 `ANTHROPIC_API_KEY=... node acme-agent.js` runs Acme's background agent as an LLM. It reads each goal's state from the ledger (`GET /api/bg/goals`), decides the next step and asks the portal with `POST /api/bg/step`. The portal's gate still decides everything: scopes, tiers, limits, loop guard, human approvals and grants (the portal redeems approved grants itself). While the process runs, the scripted background agent stands down; if it stops for 20s the script takes over again. It only calls the model when a goal's state changes. Tested with a stub model through the full flow (warranty, booking, reminder, exception approved by supervisor then Priya, fee, close); not tested against the real API.
+
+
+## B2B companion
+Business (background) agents arriving at the portal, with organisation identity, contract limits and role-based approvers on both sides: https://github.com/ankitavijay-debug/agent-portal-b2b-prototype
