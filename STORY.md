@@ -14,9 +14,9 @@ One goal, seven days, five people and systems. What is live in the prototype and
 - Acme's background agent checks the asset record, books the earliest evening slot, sends a reminder. Priya sees only: "Booked Fri 5pm-7pm. I added it to your calendar." **Live (Acme's agent is the LLM from `acme-agent.js` if you started it).**
 
 ## Day 2: the warranty problem, a decision only humans can make
-- The fridge warranty expired 3 days ago. Acme's agent asks for a goodwill exception (tier 4: Dana first, then Priya). **Live.**
+- The fridge warranty expired 3 days ago. Acme's agent asks for a goodwill exception (tier 4: Dana, the Acme supervisor, decides alone. It is Acme's policy call, not Priya's, so her agent just tells her). **Live.**
 - Claude wakes on the change (no message from Priya), and tells her: "Warranty ran out 3 days ago. Acme's supervisor is reviewing a goodwill exception; you'll be asked to confirm." **Live (watcher loop).**
-- Dana approves in her console. Priya gets a secure card on her phone, confirms. **Live.** Claude does not and cannot approve anything.
+- Dana approves in her console. Priya gets no card: it is Acme's call, and Claude simply tells her. Priya only approves what is hers (money, her account, closing her case). **Live.** Claude does not and cannot approve anything.
 
 ## Day 3: overnight, the agent forgets nothing
 - Stop and restart `assistant.js` (this is "the next morning"). **Live.** Ask: `what's happening with my fridge?` Claude answers from its saved plan and memory, not from a fresh start. **Live (`assistant-state.json`).**

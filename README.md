@@ -16,7 +16,7 @@ Env knobs: `PORT`, `TICK` (background agent interval ms), `APPROVAL_TTL`, `STALL
 
 ## Flow
 1. Claude creates a goal. ChatGPT creating the same goal joins it (no duplicate).
-2. Background agent: check warranty (T0), book technician (T1), remind (T1), warranty expired, so it requests a goodwill exception (T4: supervisor, then Priya).
+2. Background agent: check warranty (T0), book technician (T1), remind (T1), warranty expired, so it requests a goodwill exception (T4: the supervisor decides; Priya is informed, not asked).
 3. After approval it redeems the grant, requests the $80 fee (T2), then asks Priya to confirm closing (T2).
 4. Surfaces can propose T2/T3 actions (fee, address change, close) and must redeem their own grants.
 
@@ -54,3 +54,7 @@ The live agent keeps `assistant-state.json` (what it knows about Priya, the goal
 
 ### LLM-driven Acme background agent (acme-agent.js)
 `ANTHROPIC_API_KEY=... node acme-agent.js` runs Acme's background agent as an LLM. It reads each goal's state from the ledger (`GET /api/bg/goals`), decides the next step and asks the portal with `POST /api/bg/step`. The portal's gate still decides everything: scopes, tiers, limits, loop guard, human approvals and grants (the portal redeems approved grants itself). While the process runs, the scripted background agent stands down; if it stops for 20s the script takes over again. It only calls the model when a goal's state changes. Tested with a stub model through the full flow (warranty, booking, reminder, exception approved by supervisor then Priya, fee, close); not tested against the real API.
+
+
+## B2B companion
+Business (background) agents arriving at the portal, with organisation identity, contract limits and role-based approvers on both sides: https://github.com/ankitavijay-debug/agent-portal-b2b-prototype

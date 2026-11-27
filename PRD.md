@@ -29,7 +29,7 @@ Non-goals: building Poppy itself (treated as the backend protocol), OAuth, real 
 **Portal and ledger**
 - Event-sourced goal ledger, versioned writes (optimistic concurrency), idempotency keys, same goal from two agents joins rather than duplicates.
 
-**Capability manifest and tiers** (0 read, 1 act and notify, 2 customer approves, 3 customer with step-up, 4 supervisor then customer)
+**Capability manifest and tiers** (0 read, 1 act and notify, 2 customer approves, 3 customer with step-up, 4 company supervisor decides, customer is informed)
 - Per-action tier, approvers, limits, auto-approve amount, on/off. Agent x action scope matrix.
 
 **Approvals**
